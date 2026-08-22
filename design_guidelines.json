@@ -1,0 +1,223 @@
+{
+  "app_name": "АЛХААЧ (Alkhaach)",
+  "personality": "5 Brutalist Mobile (Playful Neo-Brutalism fusion)",
+  "personality_one_liner": "A structural, playful, and high-contrast fitness game where every component feels like a tactile, coded object.",
+  "color": {
+    "light": {
+      "surface": "#EFEADC",
+      "onSurface": "#191F1B",
+      "surfaceSecondary": "#FFFDF7",
+      "onSurfaceSecondary": "#191F1B",
+      "surfaceTertiary": "#D8D2C0",
+      "onSurfaceTertiary": "#191F1B",
+      "surfaceInverse": "#232B25",
+      "onSurfaceInverse": "#EFEADC",
+      "brand": "#12A87E",
+      "brandPrimary": "#12A87E",
+      "onBrandPrimary": "#FFFDF7",
+      "brandSecondary": "#4A3AFF",
+      "onBrandSecondary": "#FFFDF7",
+      "brandTertiary": "#F0A03C",
+      "onBrandTertiary": "#191F1B",
+      "success": "#12A87E",
+      "onSuccess": "#FFFDF7",
+      "warning": "#F0A03C",
+      "onWarning": "#191F1B",
+      "error": "#F0A03C",
+      "onError": "#191F1B",
+      "border": "#191F1B",
+      "borderStrong": "#191F1B",
+      "divider": "#191F1B",
+      "shadow": "#191F1B"
+    },
+    "dark": {
+      "surface": "#232B25",
+      "onSurface": "#EFEADC",
+      "surfaceSecondary": "#191F1B",
+      "onSurfaceSecondary": "#EFEADC",
+      "surfaceTertiary": "#404842",
+      "onSurfaceTertiary": "#EFEADC",
+      "surfaceInverse": "#EFEADC",
+      "onSurfaceInverse": "#191F1B",
+      "brand": "#12A87E",
+      "brandPrimary": "#12A87E",
+      "onBrandPrimary": "#FFFDF7",
+      "brandSecondary": "#4A3AFF",
+      "onBrandSecondary": "#FFFDF7",
+      "brandTertiary": "#F0A03C",
+      "onBrandTertiary": "#191F1B",
+      "success": "#12A87E",
+      "onSuccess": "#FFFDF7",
+      "warning": "#F0A03C",
+      "onWarning": "#191F1B",
+      "error": "#F0A03C",
+      "onError": "#191F1B",
+      "border": "#EFEADC",
+      "borderStrong": "#EFEADC",
+      "divider": "#EFEADC",
+      "shadow": "#000000"
+    }
+  },
+  "typography": {
+    "displayFontFamily": "Bricolage Grotesque",
+    "textFontFamily": "Inter",
+    "monoFontFamily": "JetBrains Mono",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Use rigid, boxy spacing. Avoid floating elements; everything should sit in a defined container.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 14,
+    "md": 20,
+    "lg": 28,
+    "pill": 999
+  },
+  "shadow_tier": "custom_hard_offset",
+  "navigation": "bottom_tabs",
+  "icon_set": "custom (1.6px strokes, rounded caps, no fill)",
+  "glassmorphism": {
+    "enabled": "false",
+    "do's": [],
+    "dont's": ["Do not use blur, glass, or soft shadows. All shadows must be hard 0 2px 0 offsets."]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "none",
+      "android": "none",
+      "low_end_android_fallback": "none"
+    },
+    "image": "expo-image",
+    "animation": "react-native-reanimated",
+    "svg": "react-native-svg"
+  },
+  "screens": [
+    {
+      "name": "Login",
+      "purpose": "Entry point with logo, SVG character, and Google login.",
+      "states": {
+        "loading": "Spinner centered",
+        "empty": "N/A",
+        "error": "Standard alert toast"
+      },
+      "layout": "Center aligned. Oversized typography for logo. SVG character in the middle. Primary Google CTA at the bottom thumb zone with hard offset shadow."
+    },
+    {
+      "name": "NameAndColor",
+      "purpose": "Onboarding step to pick name and 6 colors with live character preview.",
+      "states": {
+        "loading": "N/A",
+        "empty": "N/A",
+        "error": "Validation error if name is empty"
+      },
+      "layout": "Live SVG character preview on top. Name input field below it. 6 color choice chips wrapped in a row. Sticky 'Continue' CTA at bottom."
+    },
+    {
+      "name": "HealthPermission",
+      "purpose": "Explainer screen for health permissions.",
+      "states": {
+        "loading": "N/A",
+        "empty": "N/A",
+        "error": "Permission denied state with deep amber warning"
+      },
+      "layout": "Large icon or SVG illustration at top. Bold headline (Bricolage). Body text (Inter) explaining why. Primary CTA to allow, secondary text link to skip."
+    },
+    {
+      "name": "Home",
+      "purpose": "Main dashboard showing character stage, today's steps, and progress.",
+      "states": {
+        "loading": "Skeleton UI for data cards",
+        "empty": "New user state: welcome message instead of stats",
+        "error": "Failed to fetch steps: retry button"
+      },
+      "layout": "Top portion: Character stage with dark backdrop (Занар) radius 28. SVG character inside. Below: thick-bordered cards for today's steps (with progress bar using Хаш), yesterday/7 days summary, and weight line position. JetBrains Mono for all numeric data."
+    },
+    {
+      "name": "Journal",
+      "purpose": "Historical step data and weight curve.",
+      "states": {
+        "loading": "Skeleton charts",
+        "empty": "No data yet message with empty state illustration",
+        "error": "Failed to load history: retry CTA"
+      },
+      "layout": "7-day bar chart card. Yesterday vs Today comparison block. 30-day weight curve graph. High contrast, thick 1.5px lines for charts."
+    },
+    {
+      "name": "Groups",
+      "purpose": "List of user's groups with their weight axis.",
+      "states": {
+        "loading": "Skeleton cards",
+        "empty": "Illustration + 'Үүсгэх' (Create) or 'Нэгдэх' (Join) CTAs",
+        "error": "Failed to load groups: retry CTA"
+      },
+      "layout": "Scrollable list of group cards. Each card has a mini horizontal weight axis showing members. Floating Action Button (or sticky bottom row) for Create/Join."
+    },
+    {
+      "name": "GroupDetail",
+      "purpose": "Detailed view of a group's members on a shared weight axis.",
+      "states": {
+        "loading": "Skeleton list",
+        "empty": "N/A (user is at least 1 member)",
+        "error": "Failed to load members: retry CTA"
+      },
+      "layout": "Top half: Full horizontal weight axis (Хөнгөн → Хүнд) with SVG avatars positioned by weight. Bottom half: Scrollable list of members' today steps. Invite button."
+    },
+    {
+      "name": "JoinByCode",
+      "purpose": "6-cell input to join a private group.",
+      "states": {
+        "loading": "Verifying code spinner",
+        "empty": "N/A",
+        "error": "Invalid code message in Хув (Amber)"
+      },
+      "layout": "Large 6-cell mono-spaced input boxes (JetBrains Mono). Group name preview card appears below when valid. Sticky 'Join' CTA."
+    },
+    {
+      "name": "Profile",
+      "purpose": "User settings and preferences.",
+      "states": {
+        "loading": "N/A",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "List of thick-bordered rows. Name, color picker, daily goal input, notification toggles. Logout and Delete account buttons in warning colors (Хув) at the bottom."
+    }
+  ],
+  "images": {
+    "login_logo": {
+      "url": "https://images.unsplash.com/photo-1662947190722-5d272f82a526?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwxfHxnb29nbGUlMjBsb2dvJTIwdHJhbnNwYXJlbnR8ZW58MHx8fHwxNzg3MTYxNzM1fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Google logo"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the user's color palette: Овъёос (main bg), Бэх (text/lines/borders), Хаш (primary action), Хув (warnings), Ультра (social), Занар (dark stage).",
+    "Typography must strictly use Bricolage Grotesque 700 for Display, Inter for Body, and JetBrains Mono for numeric/data displays.",
+    "Implement the brutalist box model: 1.5px solid borders, hard offset shadows (0 2px 0) in ink color (or border color in dark mode), and NO blurred shadows or glassmorphism.",
+    "Buttons must have a press-shrink to 0.96 animation and eliminate the offset shadow on press to simulate physical clicking.",
+    "The character must be implemented entirely using react-native-svg. Body width, height, eye spacing, mouth curve, and color (shifting from Хаш to Хув) must interpolate based on a single weight variable (0-100).",
+    "Group screens must feature a horizontal axis (Хөнгөн → Хүнд) where members are placed relative to their weight variable.",
+    "All text must be in Mongolian sentence case as requested.",
+    "Dark mode is mandatory. Use Занар (#232B25) for backgrounds and ensure border/shadow colors invert cleanly for visibility.",
+    "Implement 6-cell code input for the 'Join by code' screen using JetBrains Mono."
+  ],
+  "haptics": {
+    "button_press": "light",
+    "tab_switch": "light",
+    "goal_reached": "success",
+    "code_entered": "selection",
+    "error_state": "error"
+  }
+}
