@@ -5,13 +5,13 @@
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "https://ЭНД-RENDER-ХАЯГАА-ТАВИНА.onrender.com"
+        "EXPO_PUBLIC_BACKEND_URL": "https://alkhaach2.onrender.com"
       }
     },
     "production": {
       "android": { "buildType": "app-bundle" },
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "https://ЭНД-RENDER-ХАЯГАА-ТАВИНА.onrender.com"
+        "EXPO_PUBLIC_BACKEND_URL": "https://alkhaach2.onrender.com/"
       }
     }
   },

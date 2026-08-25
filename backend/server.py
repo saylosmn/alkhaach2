@@ -1,6 +1,8 @@
 import os
 import re
 import uuid
+import html
+import json
 import random
 import asyncio
 import logging
@@ -233,7 +235,73 @@ async def google_start(redirect: str):
         "access_type": "online",
         "prompt": "select_account",
     })
-    return RedirectResponse(f"{GOOGLE_AUTH_URL}?{params}", status_code=302)
+    google_url = f"{GOOGLE_AUTH_URL}?{params}"
+    return HTMLResponse(_waiting_page(google_url))
+
+
+def _waiting_page(next_url: str) -> str:
+    """Google руу шилжихийн өмнөх богино хүлээх дэлгэц.
+
+    Шууд 302 хийвэл хэрэглэгч серверийн нүцгэн хуудсыг харчихдаг тул
+    брэндийн дэлгэц үзүүлээд JS-ээр шилжүүлнэ.
+    """
+    safe = html.escape(next_url, quote=True)
+    return f"""<!doctype html>
+<html lang="mn"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>АЛХААЧ — Нэвтрэх</title>
+<style>
+  *{{box-sizing:border-box}}
+  html,body{{height:100%;margin:0}}
+  body{{
+    background:#1C2430;color:#F5F1EC;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center;
+    padding:24px;text-align:center;
+  }}
+  .wrap{{max-width:340px;animation:in .4s ease-out both}}
+  @keyframes in{{from{{opacity:0;transform:translateY(8px)}}to{{opacity:1;transform:none}}}}
+  svg{{width:104px;height:104px;display:block;margin:0 auto 28px}}
+  h1{{font-size:20px;font-weight:700;margin:0 0 10px;letter-spacing:.3px}}
+  p{{font-size:15px;line-height:1.6;margin:0;color:#9AA4B2}}
+  .dots{{display:flex;gap:7px;justify-content:center;margin-top:26px}}
+  .dots i{{
+    width:7px;height:7px;border-radius:50%;background:#FF8A5C;
+    animation:pulse 1.3s ease-in-out infinite;
+  }}
+  .dots i:nth-child(2){{animation-delay:.18s}}
+  .dots i:nth-child(3){{animation-delay:.36s}}
+  @keyframes pulse{{0%,80%,100%{{opacity:.25;transform:scale(.8)}}40%{{opacity:1;transform:scale(1)}}}}
+  a{{color:#FF8A5C;font-size:13px;display:inline-block;margin-top:26px}}
+  @media(prefers-reduced-motion:reduce){{*{{animation:none!important}}}}
+</style>
+</head><body>
+<div class="wrap">
+  <svg viewBox="0 0 900 900" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B4A"/><stop offset="100%" stop-color="#FFA05C"/>
+    </linearGradient></defs>
+    <g transform="translate(450,380)">
+      <ellipse cx="-190" cy="70" rx="26" ry="38" fill="url(#g)" opacity=".55" transform="rotate(-18 -190 70)"/>
+      <ellipse cx="-60" cy="10" rx="34" ry="50" fill="url(#g)" opacity=".8" transform="rotate(-10 -60 10)"/>
+      <ellipse cx="100" cy="-70" rx="46" ry="66" fill="url(#g)" transform="rotate(-4 100 -70)"/>
+      <path d="M -190 70 Q -125 20 -60 10 Q 20 -30 100 -70" fill="none"
+            stroke="url(#g)" stroke-width="10" stroke-linecap="round" opacity=".4"/>
+      <path d="M 40 -160 A 90 90 0 0 1 190 -140" fill="none"
+            stroke="#FFA05C" stroke-width="14" stroke-linecap="round" opacity=".5"/>
+    </g>
+  </svg>
+  <h1>Түр хүлээнэ үү</h1>
+  <p>Google-ийн нэвтрэх цонх нээгдэж байна.<br>Хаягаа сонгоно уу.</p>
+  <div class="dots"><i></i><i></i><i></i></div>
+  <a href="{safe}">Үргэлжлэхгүй бол энд дарна уу</a>
+</div>
+<script>
+  setTimeout(function(){{ window.location.replace({json.dumps(next_url)}); }}, 900);
+</script>
+</body></html>"""
 
 
 @api_router.get("/auth/google/callback")
@@ -287,7 +355,38 @@ async def google_callback(state: str, code: Optional[str] = None, error: Optiona
     })
 
     sep = "&" if "?" in app_redirect else "?"
-    return RedirectResponse(f"{app_redirect}{sep}session_id={one_time}", status_code=302)
+    return HTMLResponse(_returning_page(f"{app_redirect}{sep}session_id={one_time}"))
+
+
+def _returning_page(next_url: str) -> str:
+    """Google-ээс буцаж ирээд апп руу шилжих хоромын дэлгэц."""
+    return f"""<!doctype html>
+<html lang="mn"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>АЛХААЧ</title>
+<style>
+  html,body{{height:100%;margin:0}}
+  body{{background:#1C2430;color:#F5F1EC;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}}
+  .c{{width:44px;height:44px;border-radius:50%;margin:0 auto 24px;
+    border:3px solid rgba(255,138,92,.22);border-top-color:#FF8A5C;
+    animation:s .8s linear infinite}}
+  @keyframes s{{to{{transform:rotate(360deg)}}}}
+  h1{{font-size:19px;font-weight:700;margin:0 0 8px}}
+  p{{font-size:14px;margin:0;color:#9AA4B2}}
+  @media(prefers-reduced-motion:reduce){{.c{{animation:none}}}}
+</style>
+</head><body>
+<div>
+  <div class="c"></div>
+  <h1>Амжилттай нэвтэрлээ</h1>
+  <p>Апп руу буцаж байна…</p>
+</div>
+<script>window.location.replace({json.dumps(next_url)});</script>
+</body></html>"""
 
 
 @api_router.post("/auth/session")

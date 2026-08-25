@@ -62,6 +62,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ff95a72f-0cf8-407b-b62e-36922ff07453"
+      }
+    },
+    "owner": "saylos"
   }
 }
