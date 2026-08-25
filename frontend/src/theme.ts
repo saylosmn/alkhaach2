@@ -113,7 +113,7 @@ export function mixColor(c1: string, c2: string, t: number): string {
   return `#${m.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
-// Жингээс хамаарсан дүрийн өнгө: хаш → хув
+// Жингээс хамаарсан Тарваагийн өнгө: хаш → хув
 export function weightColor(weight: number): string {
   return mixColor(palette.jade, palette.amber, Math.max(0, Math.min(1, weight / 100)));
 }

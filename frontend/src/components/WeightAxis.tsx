@@ -14,7 +14,7 @@ export type AxisMember = {
 
 type Props = {
   members: AxisMember[];
-  height?: number; // дүрийн хэмжээ
+  height?: number; // Тарваагийн хэмжээ
   showLabels?: boolean;
   testID?: string;
 };

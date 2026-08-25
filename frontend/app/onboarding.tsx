@@ -51,9 +51,9 @@ export default function Onboarding() {
         bottomOffset={80}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { color: colors.onSurface }]}>Дүрээ бүтээе</Text>
+        <Text style={[styles.title, { color: colors.onSurface }]}>Тарваагаа бүтээе</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
-          Нэр болон өнгөө сонго. Дүр чинь алхалтаас чинь хамаарч өөрчлөгдөнө.
+          Нэр болон ороолтын өнгөө сонго. Тарваа чинь алхалтаас хамаарч өөрчлөгдөнө.
         </Text>
 
         <View style={[styles.stage, { backgroundColor: palette.slate, borderColor: colors.border }]}>

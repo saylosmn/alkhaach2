@@ -65,7 +65,7 @@ export default function Index() {
       <View style={styles.top}>
         <Text style={[styles.logo, { color: colors.onSurface }]}>АЛХААЧ</Text>
         <Text style={[styles.tagline, { color: colors.muted }]}>
-          Алхалт чинь дүрээ бүтээнэ
+          Алхалт чинь Тарваагаа бүтээнэ
         </Text>
       </View>
 
@@ -76,7 +76,7 @@ export default function Index() {
           <View style={[styles.hintLine, { backgroundColor: palette.mist }]} />
           <View style={[styles.dot, { backgroundColor: palette.amber }]} />
         </View>
-        <Text style={styles.stageText}>Өдөр бүр алхвал дүр чинь хөнгөрнө</Text>
+        <Text style={styles.stageText}>Өдөр бүр алхвал Тарваа чинь хөнгөрнө</Text>
       </View>
 
       <View style={styles.bottom}>
