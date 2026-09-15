@@ -1,0 +1,8 @@
+# Тестийн хамаарал — Render дээр суулгах шаардлагагүй.
+#   pip install -r requirements.txt -r requirements-dev.txt
+# pytest.ini нь pytest-xdist-ыг заавал шаарддаг (required_plugins).
+-r requirements.txt
+
+pytest>=8.0
+pytest-xdist>=3.5
+requests>=2.31

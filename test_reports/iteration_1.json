@@ -1,0 +1,40 @@
+{
+  "summary": "АЛХААЧ MVP first-run smoke test. Backend: 31/31 pytest cases PASSED covering auth (invalid session_id 401, /auth/me with/without bearer), profile PATCH validation (name 2-16, goal 4000-20000, hex color, notifications), steps sync 14-day batch + overwrite + flag>60k, manual entry validation (14-day window, 200k cap), summary shape, group create with 6-char code from allowed charset (no O/0/I/1/L), preview valid + invalid Mongolian message, join, group detail member view, group detail 403 for non-member (privacy check confirmed), rotate code (owner-only, old code invalidated), remove member rules (owner cannot be removed 409, non-owner cannot remove others 403, self-leave works), delete group owner-only, join-fail rate limit hitting 429 after 5 attempts. Frontend web preview verified via injected token: login screen renders logo/character/Google button, home shows character stage + mono today steps + progress + Өчигдөр/7 хоног/Жин cards + manual-entry button, manual modal opens, filling and saving updates today's steps and shows 'Алхалт хадгалагдлаа' toast, journal tab renders 7-day bar chart + Өчигдөр↔Өнөөдөр delta + 30-day weight curve, groups tab lists 'Тест бүлэг' with mini weight axis and Бүлэг үүсгэх / Кодоор нэгдэх buttons, /join renders 6-cell code input with Нэгдэх button, profile tab shows name field, 6 color chips, goal stepper, notification switches, theme chips, Гарах, Данс устгах. Deprecated packages check: none of expo-av / expo-barcode-scanner / expo-background-fetch are used (package.json uses expo-camera, expo-audio would need verify — steps use expo-sensors Pedometer which is fine).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "HomeScreen progress bar", "issue": "No testID on progress bar element; recommended `progress-bar`", "testID": "progress-bar", "priority": "LOW"},
+      {"component": "HomeScreen weight/axis card", "issue": "Missing testIDs `weight-card` and `weight-axis` (visible in UI but not testable programmatically)", "testID": "weight-card / weight-axis", "priority": "LOW"},
+      {"component": "Manual steps modal", "issue": "Modal, input, and save button lack testIDs (`manual-steps-modal`, `manual-steps-input`, `manual-steps-save`). Modal opens & save works via text/query but harder to test.", "testID": "manual-steps-*", "priority": "MEDIUM"},
+      {"component": "Groups tab group card", "issue": "Group card row lacks testID (e.g., `group-card-{gid}`); Playwright get_by_text('Тест бүлэг') click timed out — link/pressable may not be text-directly-clickable. Group detail navigation should be verified once testID is added.", "testID": "group-card", "priority": "MEDIUM"},
+      {"component": "Profile theme chips", "issue": "Theme mode chips (Систем/Гэрэл/Харанхуй) lack testIDs; automated dark-mode toggle could not be verified.", "testID": "theme-chip-{mode}", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "HomeScreen", "issues": ["Rendered date reads 'August 20' — English month name; consider Mongolian month/day format to match all-Mongolian UI spec."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Add missing testIDs on: progress bar, weight card, weight axis, manual steps modal + input + save button, group card row (with group_id), theme mode chips.",
+    "Consider localizing the header date on /home to Mongolian (e.g., '8-р сарын 20') for full Mongolian UI consistency.",
+    "Verify group-detail screen (weight axis, member list, owner-only Код солих / Бүлэг устгах, member Бүлгээс гарах) once group card testID exists — backend endpoint already fully covered by pytest."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 677 lines — approaching the 700-line threshold; consider splitting into auth/steps/groups modules soon.",
+    "process_weights caps iterations at 120 which is fine; last_processed_date fallback to yesterday when parse fails is safe.",
+    "MongoDB _id is uniformly excluded in queries — good.",
+    "Rate-limit uses join_fails collection with TTL index (1200s) matching the 10-min window."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (31/31)", "frontend": "~85% (login, home, manual entry, journal, groups list, join, profile all render & core interactions work; group-detail nav + dark-mode toggle unverified due to missing testIDs)"},
+  "seed_data_creation": "Used pre-seeded users user_test000001 / user_test000002 and their bearer tokens from /app/memory/test_credentials.md. Pytest created & cleaned up two transient groups (TEST_бүлэг_pytest, TEST_private_grp). Rate-limit test locked user_test000002 out of join for ~10 min — expected.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend fully covered by /app/backend/tests/backend_test.py — reuse for regression. Note: TestRateLimit locks user_test000002 for 10 min; if re-running quickly, either flush db.join_fails or expect the rate-limit case only. For frontend, add testIDs to items listed under action_items to enable end-to-end coverage of group detail + theme switch.",
+  "rca_of_issue": "N/A — no bugs to root-cause; only minor testID coverage gaps identified."
+}

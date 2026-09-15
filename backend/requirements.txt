@@ -1,0 +1,15 @@
+# АЛХААЧ backend — зөвхөн бодитоор хэрэглэгддэг сангууд.
+# Бүгд PyPI дээрх нийтийн багцууд тул Render дээр шууд суудаг.
+
+fastapi>=0.115,<0.116
+uvicorn[standard]>=0.32,<0.35
+
+# MongoDB — Atlas-ын mongodb+srv:// URL-д dnspython зайлшгүй хэрэгтэй
+motor>=3.6,<3.8
+pymongo>=4.9,<5.0
+dnspython>=2.6
+certifi
+
+pydantic>=2.9,<3.0
+python-dotenv>=1.0
+httpx>=0.27,<0.29
