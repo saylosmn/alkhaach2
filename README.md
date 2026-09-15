@@ -19,6 +19,15 @@
 
 Тохируулах, deploy хийх, APK бүтээх бүрэн заавар → **[SETUP.md](./SETUP.md)**
 
+APK-г шууд угсрах (Expo cloud / EAS хэрэггүй):
+
+```powershell
+cd frontend
+powershell -ExecutionPolicy Bypass -File scriptsuild-apk.ps1
+```
+
+Үр дүн: `frontend/alkhaach.apk`
+
 ## Бүтэц
 
 ```
@@ -29,7 +38,9 @@ backend/
 frontend/
   app/                expo-router дэлгэцүүд
   src/                api, auth, steps, components
-  eas.json            APK build тохиргоо
+  android/            prebuild хийгдсэн — APK-г локалаар угсарна
+  scripts/build-apk.ps1     APK угсрах (EAS шаардахгүй)
+  scripts/make-keystore.ps1 release гарын үсгийн түлхүүр
   .env.example        EXPO_PUBLIC_BACKEND_URL
 render.yaml           Render blueprint
 ```
