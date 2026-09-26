@@ -149,6 +149,18 @@ async function androidReadDays(hc: any): Promise<HealthStepDay[] | null> {
   }
 }
 
+// Health Connect-ийн тохиргоо (эх сурвалж аппуудыг холбох) дэлгэцийг нээнэ
+export function openHealthConnectSettings(): boolean {
+  const hc = getHealthConnect();
+  if (!hc) return false;
+  try {
+    hc.openHealthConnectSettings();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ---------- Нэгдсэн API ----------
 
 // Health эх сурвалж зөвшөөрөгдсөн эсэх (prompt харуулахгүй, чимээгүй шалгана)

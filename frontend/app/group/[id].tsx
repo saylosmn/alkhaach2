@@ -22,6 +22,14 @@ import { Btn, Card } from "@/src/components/UI";
 import { toast } from "@/src/components/Toast";
 import { api } from "@/src/api";
 
+// alkhaach.mn домэйн тохируулагдаагүй тул backend-ийн /j/КОД хуудас руу хуваалцна
+// (кодыг харуулж, аппыг нээнэ). Домэйн бэлэн болбол EXPO_PUBLIC_SHARE_URL-ээр солино.
+const SHARE_BASE = (
+  process.env.EXPO_PUBLIC_SHARE_URL ||
+  process.env.EXPO_PUBLIC_BACKEND_URL ||
+  ""
+).replace(/\/+$/, "");
+
 export default function GroupDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
@@ -62,7 +70,7 @@ export default function GroupDetail() {
     if (!group) return;
     try {
       await Share.share({
-        message: `«${group.name}» бүлэгт нэгдээрэй! Код: ${group.join_code} — alkhaach.mn/j/${group.join_code}`,
+        message: `«${group.name}» бүлэгт нэгдээрэй! Код: ${group.join_code} — ${SHARE_BASE}/j/${group.join_code}`,
       });
     } catch {}
   };

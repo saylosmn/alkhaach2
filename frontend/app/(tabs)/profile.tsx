@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Feather from "@expo/vector-icons/Feather";
 import { useAuth } from "@/src/context/AuthContext";
@@ -21,6 +21,12 @@ import { Btn, Card } from "@/src/components/UI";
 import { toast } from "@/src/components/Toast";
 import { api } from "@/src/api";
 import { ensurePushPermission, registerForPush } from "@/src/push";
+import {
+  backgroundStepsEnabled,
+  backgroundStepsSupported,
+  disableBackgroundSteps,
+  enableBackgroundSteps,
+} from "@/src/steps";
 
 export default function Profile() {
   const { user, setUser, logout } = useAuth();
@@ -29,6 +35,24 @@ export default function Profile() {
   const [name, setName] = useState(user?.display_name || "");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [bgSteps, setBgSteps] = useState(backgroundStepsEnabled);
+
+  // Нүүр дэлгэцээс асаасан байж болох тул таб руу орох бүрт шинэчилнэ
+  useFocusEffect(
+    useCallback(() => {
+      setBgSteps(backgroundStepsEnabled());
+    }, []),
+  );
+
+  const toggleBackgroundSteps = async (v: boolean) => {
+    if (v) {
+      const ok = await enableBackgroundSteps();
+      if (!ok) toast("Хөдөлгөөний зөвшөөрөл өгөгдсөнгүй. Тохиргооноос нээнэ үү.", "error");
+    } else {
+      await disableBackgroundSteps();
+    }
+    setBgSteps(backgroundStepsEnabled());
+  };
 
   const patch = async (body: any) => {
     try {
@@ -178,6 +202,27 @@ export default function Profile() {
           </View>
           <Text style={[styles.goalHint, { color: colors.muted }]}>4 000–20 000 хооронд</Text>
         </Card>
+
+        {/* Дэвсгэрийн алхам тоолуур (Android) */}
+        {backgroundStepsSupported() && (
+          <Card style={{ marginTop: spacing.md }} testID="background-steps-card">
+            <Text style={[styles.label, { color: colors.muted }]}>Алхам тоолох</Text>
+            <View style={styles.switchRow}>
+              <Text style={[styles.switchLabel, { color: colors.onSurface }]}>Дэвсгэрт тоолох</Text>
+              <Switch
+                testID="background-steps-switch"
+                value={bgSteps}
+                onValueChange={toggleBackgroundSteps}
+                trackColor={{ true: palette.jade, false: colors.surfaceTertiary }}
+                thumbColor={palette.paper}
+              />
+            </View>
+            <Text style={[styles.goalHint, { color: colors.muted }]}>
+              Апп хаалттай үед ч утасны мэдрэгчээр алхам тоолно. Мэдэгдлийн самбарт жижиг
+              тоолуур харагдана.
+            </Text>
+          </Card>
+        )}
 
         {/* Мэдэгдэл */}
         <Card style={{ marginTop: spacing.md }} testID="notif-card">

@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone, date
 from zoneinfo import ZoneInfo
 from typing import Optional, List
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 import certifi
@@ -78,6 +78,11 @@ logger = logging.getLogger("alkhaach")
 CODE_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # O 0 I 1 L хасагдсан
 DEFAULT_TZ = "Asia/Ulaanbaatar"
 STEP_FLAG_LIMIT = 60000
+MAX_DAY_STEPS = 200000  # үүнээс дээш утгыг хүлээж авахгүй
+BACKFILL_DAYS = 14  # хэдэн хоногийн өмнөх алхамыг синк/гараар оруулж болох вэ
+INITIAL_WEIGHT = 50.0
+# Сесс ашиглагдах бүрт сунгагдана — сард нэг ч болов нээвэл дахин нэвтрэх шаардлагагүй
+SESSION_TTL = timedelta(days=30)
 MAX_GROUPS_PER_USER = 10
 MAX_MEMBERS_PER_GROUP = 50
 
@@ -92,15 +97,30 @@ GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 
-# Апп руу буцаах зөвшөөрөгдсөн redirect scheme-үүд (open-redirect-ээс хамгаална)
-ALLOWED_REDIRECT_PREFIXES = [
-    p.strip()
-    for p in os.environ.get(
-        "ALLOWED_REDIRECT_PREFIXES",
-        "alkhaach://,exp://,http://localhost,http://127.0.0.1",
-    ).split(",")
-    if p.strip()
-]
+# Апп руу буцаах зөвшөөрөгдсөн redirect-үүд (open-redirect-ээс хамгаална).
+# Scheme + host(:port) ЯГ таарах ёстой — `startswith` бол `http://localhost.evil.com`
+# шалгалтыг давж session_id халдагч руу очдог байсан.
+# Production default: зөвхөн `alkhaach://`. Хөгжүүлэлтэд тодорхой хаягаа нэмнэ:
+#   ALLOWED_REDIRECT_PREFIXES=alkhaach://,exp://192.168.1.5:8081,http://localhost:8081
+def _parse_origin(url: str) -> Optional[tuple]:
+    try:
+        parts = urlsplit(url.strip())
+    except ValueError:
+        return None
+    if not parts.scheme:
+        return None
+    return parts.scheme.lower(), parts.netloc.lower()
+
+
+ALLOWED_REDIRECT_ORIGINS = {
+    origin
+    for origin in (
+        _parse_origin(p)
+        for p in os.environ.get("ALLOWED_REDIRECT_PREFIXES", "alkhaach://").split(",")
+        if p.strip()
+    )
+    if origin
+}
 
 # ---------- Push (Expo-ийн үнэгүй push сервис) ----------
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
@@ -176,6 +196,10 @@ class GroupJoinBody(BaseModel):
     code: str
 
 
+class LogoutBody(BaseModel):
+    device_token: Optional[str] = None
+
+
 class RegisterPushBody(BaseModel):
     # user_id-г body-оос авахаа больсон — session-ээс тодорхойлно (хуурамч бүртгэлээс сэргийлнэ)
     platform: str  # "android" | "ios"
@@ -214,9 +238,15 @@ async def get_current_user(request: Request) -> dict:
     expires = session.get("expires_at")
     if isinstance(expires, datetime) and expires.tzinfo is None:
         expires = expires.replace(tzinfo=timezone.utc)
-    if not expires or expires < datetime.now(timezone.utc):
+    now = datetime.now(timezone.utc)
+    if not expires or expires < now:
         await db.user_sessions.delete_one({"session_token": token})
         raise HTTPException(status_code=401, detail="Сессийн хугацаа дууссан")
+    # Гулсах хугацаа: өдөрт хамгийн ихдээ нэг удаа сунгана (бичилт цөөн байлгана)
+    if expires < now + SESSION_TTL - timedelta(days=1):
+        await db.user_sessions.update_one(
+            {"session_token": token}, {"$set": {"expires_at": now + SESSION_TTL}}
+        )
     user = await db.users.find_one({"user_id": session["user_id"]}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="Хэрэглэгч олдсонгүй")
@@ -224,7 +254,8 @@ async def get_current_user(request: Request) -> dict:
 
 
 def _redirect_allowed(url: str) -> bool:
-    return any(url.startswith(p) for p in ALLOWED_REDIRECT_PREFIXES)
+    origin = _parse_origin(url)
+    return origin is not None and origin in ALLOWED_REDIRECT_ORIGINS
 
 
 async def _get_or_create_user(email: str, name: Optional[str], picture: Optional[str]) -> dict:
@@ -240,7 +271,7 @@ async def _get_or_create_user(email: str, name: Optional[str], picture: Optional
         "display_name": None,
         "avatar_color": "#12A87E",
         "daily_goal": 8000,
-        "weight": 50.0,
+        "weight": INITIAL_WEIGHT,
         "tz": DEFAULT_TZ,
         "onboarded": False,
         "streak": 0,
@@ -433,7 +464,7 @@ def _returning_page(next_url: str) -> str:
 
 @api_router.post("/auth/session")
 async def exchange_session(body: SessionIdBody):
-    """Нэг удаагийн кодыг 7 хоногийн session token болгож солино."""
+    """Нэг удаагийн кодыг session token болгож солино (ашиглах бүрт сунгагдана)."""
     rec = await db.auth_codes.find_one_and_delete({"code": body.session_id})
     if not rec:
         raise HTTPException(status_code=401, detail="Нэвтрэлт амжилтгүй. Дахин оролдоно уу.")
@@ -452,7 +483,7 @@ async def exchange_session(body: SessionIdBody):
         "session_token": session_token,
         "user_id": user["user_id"],
         "created_at": datetime.now(timezone.utc),
-        "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
+        "expires_at": datetime.now(timezone.utc) + SESSION_TTL,
     })
     return {"session_token": session_token, "user": user_public(user)}
 
@@ -463,9 +494,18 @@ async def auth_me(user: dict = Depends(get_current_user)):
 
 
 @api_router.post("/auth/logout")
-async def logout(request: Request, user: dict = Depends(get_current_user)):
+async def logout(
+    request: Request,
+    body: Optional[LogoutBody] = None,
+    user: dict = Depends(get_current_user),
+):
     token = request.headers.get("Authorization", "")[7:].strip()
     await db.user_sessions.delete_one({"session_token": token})
+    # Гарсан төхөөрөмж рүү мэдэгдэл явуулахаа болино
+    if body and body.device_token:
+        await db.push_tokens.delete_one(
+            {"token": body.device_token.strip(), "user_id": user["user_id"]}
+        )
     return {"ok": True}
 
 
@@ -509,12 +549,27 @@ async def delete_me(user: dict = Depends(get_current_user)):
     uid = user["user_id"]
     owned = await db.groups.find({"owner_id": uid}, {"_id": 0}).to_list(100)
     for g in owned:
-        await db.group_members.delete_many({"group_id": g["group_id"]})
-        await db.groups.delete_one({"group_id": g["group_id"]})
+        # Бусад гишүүд үлдсэн бол бүлгийг устгахгүй — хамгийн эрт нэгдсэн гишүүнд шилжүүлнэ
+        heir = await db.group_members.find(
+            {"group_id": g["group_id"], "user_id": {"$ne": uid}}, {"_id": 0}
+        ).sort("joined_at", 1).to_list(1)
+        if heir:
+            await db.groups.update_one(
+                {"group_id": g["group_id"]}, {"$set": {"owner_id": heir[0]["user_id"]}}
+            )
+            await db.group_members.update_one(
+                {"group_id": g["group_id"], "user_id": heir[0]["user_id"]},
+                {"$set": {"role": "owner"}},
+            )
+        else:
+            await db.groups.delete_one({"group_id": g["group_id"]})
     await db.group_members.delete_many({"user_id": uid})
     await db.steps_daily.delete_many({"user_id": uid})
     await db.weight_daily.delete_many({"user_id": uid})
     await db.user_sessions.delete_many({"user_id": uid})
+    await db.auth_codes.delete_many({"user_id": uid})
+    await db.push_tokens.delete_many({"user_id": uid})
+    await db.notif_log.delete_many({"user_id": uid})
     await db.join_fails.delete_many({"user_id": uid})
     await db.users.delete_one({"user_id": uid})
     return {"ok": True}
@@ -554,10 +609,12 @@ async def process_weights(user: dict) -> dict:
                 change -= 4
         else:
             streak = 0
-        weight = max(0.0, min(100.0, weight + change))
+        # Хадгалсан утгатай яг ижил байлгахын тулд өдөр бүр бөөрөнхийлнө —
+        # rewind_weights энэ мөрөөс дахин эхлэхэд үр дүн зөрөхгүй
+        weight = round(max(0.0, min(100.0, weight + change)), 2)
         await db.weight_daily.update_one(
             {"user_id": uid, "local_date": d.isoformat()},
-            {"$set": {"weight": round(weight, 2), "delta": round(change, 2)}},
+            {"$set": {"weight": weight, "delta": round(change, 2), "streak": streak}},
             upsert=True,
         )
         changed = True
@@ -576,15 +633,73 @@ async def process_weights(user: dict) -> dict:
     return user
 
 
+async def _legacy_streak_before(uid: str, day: date) -> int:
+    """`streak` талбаргүй хуучин weight_daily-д зориулсан нөөц тооцоо.
+    Зорилго биелсэн өдрийн delta <= 0, биелээгүй өдрийнх > 0 байдгаар сэргээнэ
+    (зорилгоос хэдхэн алхам дутсан өдрийн delta 0.0 болж бөөрөнхийлөгддөг тул ойролцоо)."""
+    docs = await db.weight_daily.find(
+        {"user_id": uid, "local_date": {"$lt": day.isoformat()}},
+        {"_id": 0, "local_date": 1, "delta": 1},
+    ).sort("local_date", -1).to_list(1000)
+    streak = 0
+    expected = day - timedelta(days=1)
+    for doc in docs:
+        if doc["local_date"] != expected.isoformat() or float(doc.get("delta", 1)) > 0:
+            break
+        streak += 1
+        expected -= timedelta(days=1)
+    return streak
+
+
+async def rewind_weights(user: dict, since: date) -> dict:
+    """Аль хэдийн эцэслэсэн өдрийн алхам өөрчлөгдвөл тэр өдрөөс хойшхи жинг дахин тооцно.
+
+    Жишээ: орой апп хаалттай алхсан алхам маргааш нь синк хийгдэхэд өчигдрийн жин
+    00:10-д 0 алхамаар тооцогдчихсон байдаг — энд буцааж засна.
+    """
+    uid = user["user_id"]
+    try:
+        last = date.fromisoformat(user.get("last_processed_date") or "")
+    except ValueError:
+        return user
+    first = await db.weight_daily.find(
+        {"user_id": uid}, {"_id": 0, "local_date": 1}
+    ).sort("local_date", 1).to_list(1)
+    if not first:
+        return user
+    # Бүртгүүлэхээс өмнөх өдрүүд жинд хэзээ ч тооцогдоогүй тул тэндээс эхлэхгүй
+    start = max(since, date.fromisoformat(first[0]["local_date"]))
+    if start > last:
+        return user  # хараахан эцэслээгүй — process_weights ердийнхөөрөө тооцно
+    prev = await db.weight_daily.find_one(
+        {"user_id": uid, "local_date": (start - timedelta(days=1)).isoformat()}, {"_id": 0}
+    )
+    if not prev:
+        weight, streak = INITIAL_WEIGHT, 0  # start нь бүртгүүлсэн анхны өдөр
+    else:
+        weight = float(prev["weight"])
+        streak = int(prev["streak"]) if "streak" in prev else await _legacy_streak_before(uid, start)
+    rewound = {
+        **user,
+        "weight": weight,
+        "streak": streak,
+        "last_processed_date": (start - timedelta(days=1)).isoformat(),
+    }
+    return await process_weights(rewound)
+
+
 # ---------- Steps ----------
 
-async def upsert_step_day(uid: str, local_date_str: str, steps: int, source: str):
+async def upsert_step_day(uid: str, local_date_str: str, steps: int, source: str) -> bool:
+    """Алхамыг хадгална. Жинд нөлөөлөх өөрчлөлт гарсан бол True."""
     steps = max(0, int(steps))
     flagged = 1 if steps > STEP_FLAG_LIMIT else 0
     existing = await db.steps_daily.find_one({"user_id": uid, "local_date": local_date_str}, {"_id": 0})
-    # Гараар оруулсан утгыг төхөөрөмжийн бага утга дарж бичихгүй
-    if existing and existing.get("source") == "manual" and source == "device" and steps < existing.get("steps", 0):
-        return
+    # Төхөөрөмжийн утга хадгалсан утгаас хэзээ ч бууруулахгүй (гараар оруулсныг ч,
+    # Health Connect хоосон 0 буцаасан үед мэдрэгчийн тоолсныг ч дарж бичихгүй)
+    if existing and source == "device" and steps < existing.get("steps", 0):
+        return False
+    old_steps = int(existing.get("steps", 0)) if existing else 0
     await db.steps_daily.update_one(
         {"user_id": uid, "local_date": local_date_str},
         {"$set": {
@@ -595,6 +710,7 @@ async def upsert_step_day(uid: str, local_date_str: str, steps: int, source: str
         }},
         upsert=True,
     )
+    return steps != old_steps
 
 
 async def build_summary(user: dict) -> dict:
@@ -659,13 +775,24 @@ async def steps_sync(body: StepsSyncBody, user: dict = Depends(get_current_user)
             user["tz"] = body.tz
         except Exception:
             pass
+    today = local_today(user.get("tz"))
+    earliest_change: Optional[date] = None
     for day in body.days[:20]:
         try:
-            date.fromisoformat(day.local_date)
+            d = date.fromisoformat(day.local_date)
         except Exception:
             continue
+        # Ирээдүйн болон хэт хуучин огноо, боломжгүй тоог чимээгүй алгасна
+        # (422 буцаавал аппын офлайн дараалал үүрд гацна)
+        if not (today - timedelta(days=BACKFILL_DAYS) <= d <= today):
+            continue
+        if not (0 <= day.steps <= MAX_DAY_STEPS):
+            continue
         src = "manual" if day.source == "manual" else "device"
-        await upsert_step_day(uid, day.local_date, day.steps, src)
+        if await upsert_step_day(uid, d.isoformat(), day.steps, src):
+            earliest_change = min(earliest_change or d, d)
+    if earliest_change:
+        user = await rewind_weights(user, earliest_change)
     user = await process_weights(user)
     return await build_summary(user)
 
@@ -677,11 +804,12 @@ async def steps_manual(body: ManualStepsBody, user: dict = Depends(get_current_u
     except Exception:
         raise HTTPException(status_code=422, detail="Огноо буруу байна")
     today = local_today(user.get("tz"))
-    if not (today - timedelta(days=14) <= d <= today):
+    if not (today - timedelta(days=BACKFILL_DAYS) <= d <= today):
         raise HTTPException(status_code=422, detail="Сүүлийн 14 хоногийн огноо байх ёстой")
-    if body.steps < 0 or body.steps > 200000:
+    if body.steps < 0 or body.steps > MAX_DAY_STEPS:
         raise HTTPException(status_code=422, detail="Алхамын тоо буруу байна")
-    await upsert_step_day(user["user_id"], body.local_date, body.steps, "manual")
+    if await upsert_step_day(user["user_id"], d.isoformat(), body.steps, "manual"):
+        user = await rewind_weights(user, d)
     user = await process_weights(user)
     return await build_summary(user)
 
@@ -923,22 +1051,35 @@ async def create_group(body: GroupCreateBody, user: dict = Depends(get_current_u
 async def list_groups(user: dict = Depends(get_current_user)):
     uid = user["user_id"]
     mems = await db.group_members.find({"user_id": uid}, {"_id": 0}).to_list(20)
+    gids = [m["group_id"] for m in mems]
+    # Бүлэг бүрт тусад нь query хийхгүй — 3 query-гээр бүгдийг авна
+    groups = {
+        g["group_id"]: g
+        for g in await db.groups.find({"group_id": {"$in": gids}}, {"_id": 0}).to_list(len(gids) or 1)
+    }
+    members_by_group: dict = {}
+    async for x in db.group_members.find({"group_id": {"$in": gids}}, {"_id": 0}):
+        members_by_group.setdefault(x["group_id"], []).append(x["user_id"])
+    all_ids = list({i for ids in members_by_group.values() for i in ids})
+    users_by_id = {
+        u["user_id"]: u
+        async for u in db.users.find(
+            {"user_id": {"$in": all_ids}},
+            {"_id": 0, "user_id": 1, "display_name": 1, "avatar_color": 1, "weight": 1},
+        )
+    }
     result = []
-    for m in mems:
-        g = await db.groups.find_one({"group_id": m["group_id"]}, {"_id": 0})
+    for gid in gids:
+        g = groups.get(gid)
         if not g:
             continue
-        all_mems = await db.group_members.find({"group_id": g["group_id"]}, {"_id": 0}).to_list(60)
-        member_ids = [x["user_id"] for x in all_mems]
-        users = await db.users.find(
-            {"user_id": {"$in": member_ids}},
-            {"_id": 0, "user_id": 1, "display_name": 1, "avatar_color": 1, "weight": 1},
-        ).to_list(60)
+        member_ids = members_by_group.get(gid, [])
+        users = [users_by_id[i] for i in member_ids if i in users_by_id]
         result.append({
             "group_id": g["group_id"],
             "name": g["name"],
             "is_owner": g["owner_id"] == uid,
-            "member_count": len(all_mems),
+            "member_count": len(member_ids),
             "members": [
                 {
                     "user_id": u["user_id"],
@@ -1002,13 +1143,19 @@ async def group_detail(gid: str, user: dict = Depends(get_current_user)):
     all_mems = await db.group_members.find({"group_id": gid}, {"_id": 0}).to_list(60)
     member_ids = [x["user_id"] for x in all_mems]
     users = await db.users.find({"user_id": {"$in": member_ids}}, {"_id": 0}).to_list(60)
+    # Гишүүн бүрийн "өнөөдөр" нь өөрийнх нь цагийн бүсээр — нэг query-гээр авч шүүнэ
+    member_today = {u["user_id"]: local_today(u.get("tz", DEFAULT_TZ)).isoformat() for u in users}
+    steps_by_user = {
+        sd["user_id"]: sd
+        async for sd in db.steps_daily.find(
+            {"user_id": {"$in": member_ids}, "local_date": {"$in": list(set(member_today.values()))}},
+            {"_id": 0},
+        )
+        if sd["local_date"] == member_today.get(sd["user_id"])
+    }
     members = []
     for u in users:
-        m_tz = u.get("tz", DEFAULT_TZ)
-        m_today = local_today(m_tz).isoformat()
-        sd = await db.steps_daily.find_one(
-            {"user_id": u["user_id"], "local_date": m_today}, {"_id": 0}
-        )
+        sd = steps_by_user.get(u["user_id"])
         flagged = bool(sd.get("flagged")) if sd else False
         steps = None if flagged else (int(sd["steps"]) if sd else 0)
         members.append({
@@ -1099,7 +1246,7 @@ h1{font-size:28px}h2{font-size:18px;margin-top:28px}
 <h2>1. Ямар мэдээлэл цуглуулдаг вэ</h2>
 <p>АЛХААЧ дараах мэдээллийг л цуглуулна: Google дансны имэйл ба нэр (нэвтрэхэд), таны сонгосон дүрийн нэр ба өнгө, өдөр тутмын алхамын тоо, өдрийн зорилго, цагийн бүс. Өөр юу ч цуглуулахгүй.</p>
 <h2>2. Эрүүл мэндийн өгөгдөл</h2>
-<p>Апп нь Apple Health (iOS) болон Health Connect (Android)-оос зөвхөн алхамын тоог уншина. Зөвхөн унших эрхтэй — юу ч бичихгүй. Байршил, зүрхний цохилт, биеийн жин, унтлага зэрэг өөр ямар ч эрүүл мэндийн төрөлд хандахгүй. Зөвшөөрлөө хэдийд ч утасныхаа тохиргооноос цуцалж болно — апп гараар оруулах горимоор үргэлжлүүлэн ажиллана.</p>
+<p>Апп нь Apple Health (iOS) болон Health Connect (Android)-оос зөвхөн алхамын тоог уншина. Зөвхөн унших эрхтэй — юу ч бичихгүй. Байршил, зүрхний цохилт, биеийн жин, унтлага зэрэг өөр ямар ч эрүүл мэндийн төрөлд хандахгүй. Зөвшөөрлөө хэдийд ч утасныхаа тохиргооноос цуцалж болно — апп гараар оруулах горимоор үргэлжлүүлэн ажиллана. Android дээр та «Дэвсгэрт тоолох»-ыг асаавал апп хаалттай үед ч утасны алхам мэдрэгчээс зөвхөн алхамын тоог уншина (мэдэгдлийн самбарт харагдана); профайлаас хэдийд ч унтрааж болно.</p>
 <h2>3. Өгөгдөл хэрхэн ашиглагддаг вэ</h2>
 <p>Алхамын тоо нь зөвхөн таны дүрийн жинг тооцоолох, өөрийн явцыг харуулах, таны нэгдсэн бүлгүүдэд харуулахад ашиглагдана. Өгөгдлийг зар сурталчилгаанд ашиглахгүй, гуравдагч этгээдэд зарахгүй, дамжуулахгүй.</p>
 <h2>4. Бүлгийн нууцлал</h2>
@@ -1125,6 +1272,47 @@ async def privacy_policy():
 @api_router.get("/")
 async def root():
     return {"message": "АЛХААЧ API"}
+
+
+@app.get("/j/{code}", response_class=HTMLResponse)
+async def join_landing(code: str):
+    """Хуваалцсан холбоос (`<backend>/j/КОД`) — аппыг кодтой нь нээнэ.
+
+    alkhaach.mn домэйн тохируулагдаагүй тул share холбоос энд ирнэ. Custom scheme-ийг
+    зарим браузер автоматаар нээдэггүй тул товчоор нээлгэж, кодыг нь ч харуулна.
+    """
+    code = code.strip().upper()
+    if not re.fullmatch(f"[{CODE_CHARSET}]{{6}}", code):
+        raise HTTPException(status_code=404, detail="Код буруу байна")
+    return HTMLResponse(f"""<!doctype html>
+<html lang="mn"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>АЛХААЧ — Бүлэгт нэгдэх</title>
+<style>
+  html,body{{height:100%;margin:0}}
+  body{{background:#1C2430;color:#F5F1EC;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}}
+  .wrap{{max-width:340px}}
+  h1{{font-size:20px;margin:0 0 10px}}
+  p{{font-size:15px;line-height:1.6;margin:0;color:#9AA4B2}}
+  .code{{font-family:ui-monospace,Menlo,monospace;font-size:34px;letter-spacing:6px;
+    margin:22px 0;color:#FF8A5C}}
+  a.btn{{display:block;background:#FF8A5C;color:#1C2430;font-weight:700;text-decoration:none;
+    padding:14px;border-radius:14px;margin-top:8px}}
+</style>
+</head><body>
+<div class="wrap">
+  <h1>АЛХААЧ бүлэгт урьж байна</h1>
+  <p>Нэгдэх код:</p>
+  <div class="code">{code}</div>
+  <a class="btn" href="alkhaach://j/{code}">Апп-аар нээх</a>
+  <p style="margin-top:22px">Апп суулгаагүй бол эхлээд суулгаад, «Бүлэгт нэгдэх» хэсэгт
+  дээрх кодыг оруулна уу.</p>
+</div>
+</body></html>""")
 
 
 app.include_router(api_router)

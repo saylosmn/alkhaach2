@@ -23,9 +23,10 @@ services:
       - key: PUBLIC_BASE_URL    # ж: https://alkhaach2.onrender.com
         sync: false
       # Апп руу буцаах зөвшөөрөгдсөн redirect-үүд (open-redirect хамгаалалт).
-      # Хоосон бол default: alkhaach://,exp://,http://localhost,http://127.0.0.1
+      # Scheme + host(:port) яг таарах ёстой. Production дээр зөвхөн alkhaach://.
+      # exp:// эсвэл localhost-ыг production дээр НЭМЭХГҮЙ — session хулгайлах боломж олгоно.
       - key: ALLOWED_REDIRECT_PREFIXES
-        sync: false
+        value: "alkhaach://"
       # Мэдэгдлийг гадны cron-оор жолоодох бол: SCHEDULER_IN_PROCESS=0 болгоод
       # NOTIFY_SECRET тохируулж, POST /api/internal/notify-tick-ыг 5 мин тутам дуудна.
       - key: SCHEDULER_IN_PROCESS

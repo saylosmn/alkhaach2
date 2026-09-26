@@ -5,6 +5,13 @@ import Constants from "expo-constants";
 import { api } from "@/src/api";
 import { storage } from "@/src/utils/storage";
 
+const PUSH_TOKEN_KEY = "alkhaach_push_token";
+
+// Энэ төхөөрөмжийн Expo push токен (logout үед серверээс устгуулахад хэрэгтэй)
+export async function getStoredPushToken(): Promise<string | null> {
+  return (await storage.getItem(PUSH_TOKEN_KEY, null)) as string | null;
+}
+
 export async function registerForPush() {
   if (Platform.OS === "web") return;
   try {
@@ -41,6 +48,7 @@ export async function registerForPush() {
       platform: Platform.OS,
       device_token: tokenResp.data,
     });
+    await storage.setItem(PUSH_TOKEN_KEY, tokenResp.data);
   } catch {
     // Expo Go / симулятор — native push токен байхгүй
   }

@@ -11,6 +11,8 @@ import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 import { storage } from "@/src/utils/storage";
 import { api, setAuthToken, setUnauthorizedHandler } from "@/src/api";
+import { getStoredPushToken } from "@/src/push";
+import { disableBackgroundSteps } from "@/src/steps";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -108,8 +110,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await api.post("/auth/logout");
+      // Push токеныг хамт илгээж, гарсан төхөөрөмж рүү мэдэгдэл явахыг зогсооно
+      const deviceToken = await getStoredPushToken();
+      await api.post("/auth/logout", deviceToken ? { device_token: deviceToken } : undefined);
     } catch {}
+    // Дараагийн нэвтэрсэн хүний дансанд энэ хүний алхам орохгүйн тулд тоолуурыг зогсооно
+    await disableBackgroundSteps();
     await storeToken(null);
     setUserState(null);
   }, [storeToken]);

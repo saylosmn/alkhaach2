@@ -125,10 +125,65 @@ class TestSteps:
         info = next((x for x in s["week"] if x["local_date"] == d), None)
         assert info is not None
         assert info["flagged"] is True
-        # restore reasonable steps for downstream tests
-        requests.post(f"{BASE}/steps/sync", headers=H1, json={
-            "days": [{"local_date": d, "steps": 6000, "source": "device"}]
+        # restore reasonable steps for downstream tests (device утга буурдаггүй тул гараар)
+        requests.post(f"{BASE}/steps/manual", headers=H1, json={"local_date": d, "steps": 6000})
+
+    def test_sync_skips_invalid_days(self):
+        today = datetime.now(UB).date()
+        r = requests.post(f"{BASE}/steps/sync", headers=H1, json={"days": [
+            {"local_date": (today + timedelta(days=1)).isoformat(), "steps": 5000},
+            {"local_date": (today - timedelta(days=30)).isoformat(), "steps": 5000},
+            {"local_date": (today - timedelta(days=3)).isoformat(), "steps": 250000},
+        ]})
+        # Буруу өдрүүдийг алгасна — 422 буцаавал аппын офлайн дараалал гацна
+        assert r.status_code == 200
+        d3 = next(x for x in r.json()["week"] if x["local_date"] == (today - timedelta(days=3)).isoformat())
+        assert d3["steps"] != 250000
+
+    def test_device_never_lowers(self):
+        d = (datetime.now(UB).date() - timedelta(days=4)).isoformat()
+        requests.post(f"{BASE}/steps/sync", headers=H1, json={"days": [{"local_date": d, "steps": 7000}]})
+        r = requests.post(f"{BASE}/steps/sync", headers=H1, json={"days": [{"local_date": d, "steps": 0}]})
+        info = next(x for x in r.json()["week"] if x["local_date"] == d)
+        assert info["steps"] >= 7000
+
+
+class TestLateSyncRecompute:
+    """Эцэслэгдсэн өдрийн алхам хожуу ирэхэд жин дахин тооцогдох ёстой."""
+
+    UID = "user_test000003"
+    TOK = "test_session_token_alkhaach_3"
+
+    @pytest.fixture(autouse=True, scope="class")
+    def seed_user(self):
+        from pymongo import MongoClient
+        mongo = MongoClient(os.environ["MONGO_URL"])[os.environ.get("DB_NAME", "alkhaach")]
+        two_days_ago = (datetime.now(UB).date() - timedelta(days=2)).isoformat()
+        for coll in ("steps_daily", "weight_daily", "users", "user_sessions"):
+            mongo[coll].delete_many({"user_id": self.UID})
+        mongo.users.insert_one({
+            "user_id": self.UID, "email": f"{self.UID}@test.local", "display_name": "Тест Гурав",
+            "daily_goal": 8000, "weight": 50.0, "tz": "Asia/Ulaanbaatar", "streak": 0,
+            "onboarded": True, "last_processed_date": two_days_ago,
         })
+        mongo.user_sessions.insert_one({
+            "session_token": self.TOK, "user_id": self.UID,
+            "expires_at": datetime.now(ZoneInfo("UTC")) + timedelta(days=7),
+        })
+        yield
+
+    def test_evening_steps_recomputed_next_day(self):
+        h = {"Authorization": f"Bearer {self.TOK}"}
+        # Өчигдрийг 0 алхамаар эцэслэнэ (00:10-ийн tick эсвэл апп нээхтэй адил)
+        s0 = requests.get(f"{BASE}/me/summary", headers=h).json()
+        assert s0["weight"] == 56.0
+        # Орой алхсан 10 000 алхам маргааш өглөө л синк хийгдэв
+        y = (datetime.now(UB).date() - timedelta(days=1)).isoformat()
+        s1 = requests.post(f"{BASE}/steps/sync", headers=h, json={
+            "days": [{"local_date": y, "steps": 10000}]
+        }).json()
+        assert s1["weight"] == 48.5  # 50 - 1.5
+        assert s1["streak"] == 1
 
     def test_manual_valid(self):
         today_iso = local_today_iso()

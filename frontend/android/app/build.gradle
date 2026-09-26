@@ -17,6 +17,18 @@ if (alkhaachKeystoreFile.exists()) {
     }
 }
 
+// Play Store-д очих AAB-г debug түлхүүрээр зурвал дараа нь шинэчлэл гаргах боломжгүй
+// болно — тиймээс түлхүүргүй bundleRelease-ийг зогсооно. Локал APK (assembleRelease)
+// debug түлхүүрээр хэвээр угсрагдана. EAS Build өөрийн түлхүүрийг оруулдаг тул алгасна.
+gradle.taskGraph.whenReady { graph ->
+    def bundlingRelease = graph.allTasks.any { it.name == 'bundleRelease' }
+    if (bundlingRelease && alkhaachKeystore == null && System.getenv('EAS_BUILD') != 'true') {
+        throw new GradleException(
+            "АЛХААЧ: android/keystore.properties олдсонгүй. Play Store-ийн AAB-г debug " +
+            "түлхүүрээр зурахгүй — эхлээд scripts/make-keystore.ps1-ийг ажиллуулна уу.")
+    }
+}
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.

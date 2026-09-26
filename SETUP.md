@@ -214,12 +214,21 @@ powershell -ExecutionPolicy Bypass -File scriptsuild-apk.ps1 -BackendUrl https:
 ### Google Play дээр тавих бол (сонголт)
 
 ```powershell
-cd frontendndroid
+cd frontend\android
 .\gradlew.bat bundleRelease
 ```
 
 → `app/build/outputs/bundle/release/app-release.aab`. Энэ тохиолдолд Алхам 2
-дээрх өөрийн release түлхүүр **заавал** хэрэгтэй.
+дээрх өөрийн release түлхүүр **заавал** хэрэгтэй (түлхүүргүй бол build зогсоно).
+
+Play Console → **App content** дээр дараах declaration-уудыг бөглөнө:
+
+- **Foreground service permissions** → `FOREGROUND_SERVICE_HEALTH`: «Хэрэглэгч
+  асаасан үед апп хаалттай байхад утасны алхам мэдрэгчээр өдрийн алхамыг тоолно».
+  Профайл → «Дэвсгэрт тоолох»-ыг асааж, мэдэгдлийн самбарт тоолуур гарч буйг
+  харуулсан богино видео хавсаргана.
+- **Health apps** ба **Health Connect** — зөвхөн алхамын тоог уншдаг гэж тайлбарлана.
+- **Activity recognition** — алхам тоолоход ашиглана.
 
 ---
 

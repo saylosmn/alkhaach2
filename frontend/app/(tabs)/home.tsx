@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   AppState,
+  Linking,
   Modal,
   Pressable,
   RefreshControl,
@@ -28,6 +29,10 @@ import { Btn, Card } from "@/src/components/UI";
 import { toast } from "@/src/components/Toast";
 import { storage } from "@/src/utils/storage";
 import {
+  backgroundStepsSupported,
+  enableBackgroundSteps,
+  ensureBackgroundSteps,
+  getAndroidStepSource,
   getCachedSummary,
   getStepSourceState,
   requestStepPermission,
@@ -36,9 +41,15 @@ import {
   fetchSummary,
   localDateStr,
   startLiveStepTracking,
+  AndroidStepSource,
   PermState,
 } from "@/src/steps";
+import { openHealthConnectSettings } from "@/src/health";
 import { registerForPush } from "@/src/push";
+
+const HC_PLAY_ID = "com.google.android.apps.healthdata";
+const HINT_SNOOZE_KEY = "step_hint_snoozed_at";
+const HINT_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Зорилго биелэхэд хаш ногоон долгион нэг удаа тархана
 function GoalWave({ trigger }: { trigger: number }) {
@@ -78,29 +89,52 @@ export default function Home() {
   const [waveTrigger, setWaveTrigger] = useState(0);
   const [absentDays, setAbsentDays] = useState(0);
   const [appActive, setAppActive] = useState(true);
+  const [stepSource, setStepSource] = useState<AndroidStepSource | null>(null);
+  const [hintSnoozed, setHintSnoozed] = useState(true);
+  const [bgBusy, setBgBusy] = useState(false);
   const syncingRef = useRef(false);
+  // Ачаалалт явагдаж байхад ирсэн хүсэлт (sync=true бол синк шаардлагатай)
+  const pendingRef = useRef<{ sync: boolean } | null>(null);
 
   const load = useCallback(async (viaSync: boolean) => {
-    if (syncingRef.current) return;
+    // Өмнө нь энд шууд return хийдэг байсан тул focus-ийн load(false) түрүүлбэл
+    // анхны синк алгасагдаж байв. Одоо дууссаны дараа дахин ажиллуулна.
+    if (syncingRef.current) {
+      pendingRef.current = { sync: viaSync || !!pendingRef.current?.sync };
+      return;
+    }
     syncingRef.current = true;
+    let sync = viaSync;
     try {
-      let s = null;
-      if (viaSync) s = await syncSteps();
-      if (!s) s = await fetchSummary();
-      if (s) {
-        setSummary(s);
-        refreshUser();
+      for (;;) {
+        try {
+          let s = null;
+          if (sync) s = await syncSteps();
+          if (!s) s = await fetchSummary();
+          if (s) {
+            setSummary(s);
+            refreshUser();
+          }
+        } catch (e: any) {
+          if (e?.message) toast(e.message, "error");
+        }
+        const next = pendingRef.current;
+        pendingRef.current = null;
+        if (!next) break;
+        sync = next.sync;
       }
-    } catch (e: any) {
-      if (e?.message) toast(e.message, "error");
     } finally {
       syncingRef.current = false;
     }
+    // Синк Health Connect хоосон эсэхийг шинэчилдэг тул дараа нь шалгана
+    getAndroidStepSource().then(setStepSource);
   }, [refreshUser]);
 
   // Анхны ачаалт: кэш → синк
   useEffect(() => {
     (async () => {
+      // Дэвсгэрийн тоолуурыг OS зогсоосон бол сэргээнэ (зөвшөөрөл цуцлагдсан бол унтраана)
+      await ensureBackgroundSteps();
       const cached = await getCachedSummary();
       if (cached) setSummary(cached);
       const p = await getStepSourceState();
@@ -115,17 +149,20 @@ export default function Home() {
         setAbsentDays(gap);
       }
       await storage.setItem("last_open_date", today);
+      const snoozedAt = Number(await storage.getItem(HINT_SNOOZE_KEY, null)) || 0;
+      setHintSnoozed(Date.now() - snoozedAt < HINT_SNOOZE_MS);
       await load(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Android: мэдрэгчээс алхам тоолж эхлэх (зөвшөөрөл өгсөн, апп идэвхтэй үед).
-  // Дэвсгэрт орохдоо синк хийж, subscription-ыг салгана.
+  // Дэвсгэрт орохдоо синк хийж, subscription-ыг салгана. stepSource өөрчлөгдөхөд
+  // (Health Connect хоосон болох/өгөгдөлтэй болох) дахин шийднэ.
   useEffect(() => {
     if (perm !== "granted" || !appActive) return;
     return startLiveStepTracking();
-  }, [perm, appActive]);
+  }, [perm, appActive, stepSource]);
 
   // Foreground-д 5 мин тутам + идэвхжих бүрт синк
   useEffect(() => {
@@ -181,6 +218,32 @@ export default function Home() {
     } else {
       router.push("/permission");
     }
+  };
+
+  const fixStepSource = () => {
+    if (stepSource === "health-empty" && openHealthConnectSettings()) return;
+    Linking.openURL(`market://details?id=${HC_PLAY_ID}`).catch(() =>
+      Linking.openURL(`https://play.google.com/store/apps/details?id=${HC_PLAY_ID}`),
+    );
+  };
+
+  const enableBackground = async () => {
+    setBgBusy(true);
+    try {
+      if (await enableBackgroundSteps()) {
+        toast("Апп хаалттай үед ч алхам тоологдоно", "success");
+        await load(true);
+      } else {
+        toast("Хөдөлгөөний зөвшөөрөл өгөгдсөнгүй. Тохиргооноос нээнэ үү.", "error");
+      }
+    } finally {
+      setBgBusy(false);
+    }
+  };
+
+  const snoozeHint = async () => {
+    setHintSnoozed(true);
+    await storage.setItem(HINT_SNOOZE_KEY, String(Date.now()));
   };
 
   const saveManual = async () => {
@@ -308,6 +371,44 @@ export default function Home() {
             </View>
           )}
         </Card>
+
+        {/* Android: алхам бүрэн тоологдохгүй байгаа үед засах заавар */}
+        {(stepSource === "health-empty" || stepSource === "sensor") && !hintSnoozed && (
+          <Card style={{ marginTop: spacing.md }} testID="step-source-hint">
+            <Text style={[styles.cardLabel, { color: palette.amber }]}>
+              {stepSource === "health-empty"
+                ? "Алхам бүрэн тоологдохгүй байна"
+                : "Апп хаалттай үеийн алхам тоологдохгүй"}
+            </Text>
+            <Text style={[styles.hintText, { color: colors.onSurface }]}>
+              {stepSource === "health-empty"
+                ? "Health Connect-д алхам ирэхгүй байна (Samsung Health эсвэл Google Fit холбогдоогүй). Одоогоор зөвхөн апп нээлттэй үеийн алхам тоологдож байна."
+                : "Одоогоор зөвхөн апп нээлттэй үеийн алхам тоологдож байна."}
+              {backgroundStepsSupported()
+                ? " «Дэвсгэрт тоолох»-ыг асаавал утас халаасанд байхад ч тоолно — мэдэгдлийн самбарт жижиг тоолуур харагдана."
+                : " Samsung Health эсвэл Google Fit-ийг Health Connect-той холбоно уу."}
+            </Text>
+            {backgroundStepsSupported() && (
+              <Btn
+                label="Дэвсгэрт тоолох"
+                onPress={enableBackground}
+                loading={bgBusy}
+                style={{ marginTop: spacing.md }}
+                testID="enable-background-steps-button"
+              />
+            )}
+            <View style={styles.manualRow}>
+              <Btn
+                label={stepSource === "health-empty" ? "Health Connect нээх" : "Health Connect суулгах"}
+                onPress={fixStepSource}
+                variant="outline"
+                style={{ flex: 1 }}
+                testID="step-source-fix-button"
+              />
+              <Btn label="Дараа" onPress={snoozeHint} variant="ghost" testID="step-source-snooze-button" />
+            </View>
+          </Card>
+        )}
 
         {/* Өчигдөр / 7 хоног / Жин */}
         <View style={styles.statRow}>
@@ -520,6 +621,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     marginTop: spacing.md,
+  },
+  hintText: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: spacing.xs,
   },
   statRow: {
     flexDirection: "row",
