@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>АЛХААЧ — Апп татах</title>
+<meta name="description" content="АЛХААЧ — Монгол хэл дээрх алхалт хэмжигч апп. Алх, тарвагаа турааж, найзуудтайгаа хаалттай бүлэгт өрсөлд.">
+<meta name="theme-color" content="#EFEADC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#232B25" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="АЛХААЧ — Алх. Тарвагаа турааж үз.">
+<meta property="og:description" content="Өдөр бүрийн алхалт чинь тарвагыг чинь турааж, бүдүүрүүлнэ. Android-д үнэгүй татаж аваарай.">
+<meta property="og:image" content="assets/icon-512.png">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@500&family=Manrope:wght@800&display=swap" rel="stylesheet">
+<style>
+  /* АЛХААЧ дизайн систем (frontend/src/theme.ts) — Playful Neo-Brutalism */
+  :root {
+    --surface: #EFEADC;
+    --on-surface: #191F1B;
+    --surface-2: #FFFDF7;
+    --surface-3: #D8D2C0;
+    --stage: #232B25;
+    --on-stage: #EFEADC;
+    --brand: #12A87E;
+    --on-brand: #FFFDF7;
+    --social: #4A3AFF;
+    --warn: #F0A03C;
+    --border: #191F1B;
+    --shadow: #191F1B;
+    --muted: #6B6F68;
+    --r-btn: 14px;
+    --r-card: 20px;
+    --r-stage: 28px;
+    --display: "Manrope", system-ui, sans-serif;
+    --body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #232B25;
+      --on-surface: #EFEADC;
+      --surface-2: #191F1B;
+      --surface-3: #404842;
+      --stage: #191F1B;
+      --on-stage: #EFEADC;
+      --social: #6D5FFF;
+      --border: #EFEADC;
+      --shadow: #000000;
+      --muted: #9AA096;
+      color-scheme: dark;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--surface);
+    color: var(--on-surface);
+    font: 400 16px/1.6 var(--body);
+    overflow-x: hidden;
+  }
+  a { color: inherit; }
+  img { display: block; max-width: 100%; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+  @media (min-width: 720px) { .wrap { padding: 0 32px; } }
+
+  h1, h2, h3 { font-family: var(--display); font-weight: 800; line-height: 1.08; margin: 0; letter-spacing: -0.02em; }
+  .mono { font-family: var(--mono); }
+  .muted { color: var(--muted); }
+
+  /* ---------- Кнопкууд ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    min-height: 56px; padding: 0 22px;
+    border: 1.5px solid var(--border); border-radius: var(--r-btn);
+    background: var(--surface-2); color: var(--on-surface);
+    font: 600 16px/1 var(--body); text-decoration: none; cursor: pointer;
+    box-shadow: 0 3px 0 var(--shadow);
+    transition: transform .08s ease, box-shadow .08s ease;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--shadow); }
+  .btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--shadow); }
+  .btn:focus-visible { outline: 3px solid var(--social); outline-offset: 3px; }
+  .btn-primary { background: var(--brand); color: var(--on-brand); border-color: var(--border); }
+  .btn-sm { min-height: 42px; padding: 0 16px; font-size: 14px; }
+  .btn[aria-disabled="true"] { opacity: .55; cursor: not-allowed; box-shadow: none; transform: none; }
+  .btn svg { flex: none; }
+
+  /* ---------- Header ---------- */
+  header.top {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface);
+    border-bottom: 1.5px solid var(--border);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 68px; }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo img { width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--border); }
+  .logo span { font: 800 20px/1 var(--display); letter-spacing: .04em; }
+  nav.links { display: none; gap: 24px; font-weight: 600; font-size: 14px; }
+  nav.links a { text-decoration: none; }
+  nav.links a:hover { text-decoration: underline; text-underline-offset: 4px; }
+  @media (min-width: 860px) { nav.links { display: flex; } }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 40px 0 56px; }
+  .hero-grid { display: grid; gap: 36px; align-items: center; }
+  @media (min-width: 900px) { .hero-grid { grid-template-columns: 1.05fr 1fr; gap: 56px; } .hero { padding: 72px 0 88px; } }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border: 1.5px solid var(--border); border-radius: 999px;
+    background: var(--surface-2); font: 500 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+  }
+  .eyebrow i { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); display: block; }
+  .hero h1 { font-size: clamp(40px, 8vw, 76px); margin: 20px 0 18px; }
+  .hero h1 em { font-style: normal; color: var(--brand); }
+  .hero p.lead { font-size: 18px; max-width: 520px; margin: 0 0 28px; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+  .cta-row .btn { flex: 1 1 220px; }
+  @media (min-width: 560px) { .cta-row .btn { flex: 0 0 auto; } }
+  .btn .two { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; }
+  .btn .two small { font: 500 11px/1 var(--mono); opacity: .8; letter-spacing: .04em; text-transform: uppercase; }
+  .release-meta { margin-top: 16px; font: 500 13px/1.5 var(--mono); color: var(--muted); min-height: 20px; }
+
+  /* ---------- Дүрийн тайз ---------- */
+  .stage-card {
+    background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--r-stage);
+    box-shadow: 0 4px 0 var(--shadow); padding: 14px;
+  }
+  .stage {
+    position: relative; background: var(--stage); border-radius: 20px; overflow: hidden;
+    aspect-ratio: 1 / 1; display: grid; place-items: center;
+  }
+  .stage::before {
+    content: ""; position: absolute; left: 12%; right: 12%; bottom: 11%; height: 7%;
+    background: #000; opacity: .28; border-radius: 50%;
+  }
+  .stage-tag {
+    position: absolute; top: 14px; left: 14px; z-index: 2;
+    padding: 6px 10px; border-radius: 999px; background: var(--on-stage); color: #191F1B;
+    font: 600 12px/1 var(--body);
+  }
+  .stage-weight {
+    position: absolute; top: 14px; right: 14px; z-index: 2; color: var(--on-stage);
+    font: 500 12px/1 var(--mono); opacity: .8;
+  }
+  .char { position: relative; width: 78%; aspect-ratio: 600 / 650; }
+  .char img, .char .scarf { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .char .scarf {
+    background: var(--scarf, #12A87E);
+    -webkit-mask: var(--scarf-img) center / contain no-repeat;
+            mask: var(--scarf-img) center / contain no-repeat;
+  }
+  .char img { object-fit: contain; }
+
+  .controls { padding: 18px 6px 4px; display: grid; gap: 14px; }
+  .steps-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .steps-row label { font-weight: 600; font-size: 14px; }
+  .steps-row output { font: 500 22px/1 var(--mono); }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 14px; margin: 0;
+    border: 1.5px solid var(--border); border-radius: 999px;
+    background: linear-gradient(to right, var(--brand) var(--p, 40%), var(--surface-3) var(--p, 40%));
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--surface-2); border: 1.5px solid var(--border); box-shadow: 0 2px 0 var(--shadow);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--surface-2); border: 1.5px solid var(--border); box-shadow: 0 2px 0 var(--shadow);
+  }
+  input[type=range]:focus-visible { outline: 3px solid var(--social); outline-offset: 4px; }
+  .swatches { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .swatches span { font-size: 13px; color: var(--muted); margin-right: 4px; }
+  .swatch {
+    width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--border); padding: 0; cursor: pointer;
+    background: var(--c); box-shadow: 0 2px 0 var(--shadow);
+  }
+  .swatch[aria-pressed="true"] { outline: 2.5px solid var(--on-surface); outline-offset: 3px; }
+  .hint { font-size: 12px; color: var(--muted); margin: 0; }
+
+  /* ---------- Секцүүд ---------- */
+  section.block { padding: 64px 0; border-top: 1.5px solid var(--border); }
+  .section-head { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+  .section-head h2 { font-size: clamp(30px, 5vw, 44px); }
+  .section-head p { margin: 0; max-width: 620px; font-size: 17px; }
+  .kicker { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+  .cards { display: grid; gap: 16px; }
+  @media (min-width: 760px) { .cards { grid-template-columns: repeat(3, 1fr); gap: 20px; } }
+  .card {
+    background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--r-card);
+    box-shadow: 0 3px 0 var(--shadow); padding: 24px;
+  }
+  .card h3 { font-size: 22px; margin: 16px 0 8px; }
+  .card p { margin: 0; }
+  .num {
+    display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px;
+    border: 1.5px solid var(--border); font: 500 16px/1 var(--mono);
+  }
+  .num.g { background: var(--brand); color: var(--on-brand); }
+  .num.a { background: var(--warn); color: #191F1B; }
+  .num.u { background: var(--social); color: #FFFDF7; }
+
+  .code-demo { display: flex; gap: 6px; margin-top: 16px; }
+  .code-demo b {
+    flex: 1; max-width: 40px; aspect-ratio: 4/5; display: grid; place-items: center;
+    border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface);
+    font: 500 18px/1 var(--mono);
+  }
+
+  /* ---------- Суулгах ---------- */
+  .install-grid { display: grid; gap: 20px; }
+  @media (min-width: 900px) { .install-grid { grid-template-columns: 1.3fr 1fr; gap: 28px; } }
+  ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: s; }
+  ol.steps li {
+    counter-increment: s; display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start;
+    background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--r-card); padding: 16px;
+  }
+  ol.steps li::before {
+    content: counter(s); display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px;
+    border: 1.5px solid var(--border); background: var(--surface); font: 500 16px/1 var(--mono);
+  }
+  ol.steps strong { display: block; margin-bottom: 2px; }
+  ol.steps p { margin: 0; font-size: 15px; color: var(--muted); }
+
+  .side { display: grid; gap: 16px; align-content: start; }
+  .req dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; font-size: 15px; }
+  .req dt { color: var(--muted); }
+  .req dd { margin: 0; font-weight: 600; }
+  .qr-card { display: none; gap: 18px; align-items: center; }
+  @media (min-width: 900px) { .qr-card { display: flex; } }
+  .qr {
+    flex: none; width: 132px; height: 132px; background: #FFFDF7; border: 1.5px solid var(--border);
+    border-radius: 14px; padding: 8px; display: grid; place-items: center;
+  }
+  .qr svg { width: 100%; height: 100%; }
+  .qr-card p { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+
+  /* ---------- FAQ ---------- */
+  .faq { display: grid; gap: 12px; max-width: 820px; }
+  details {
+    background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--r-card);
+    padding: 0 20px;
+  }
+  details[open] { box-shadow: 0 3px 0 var(--shadow); }
+  summary {
+    list-style: none; cursor: pointer; padding: 18px 0; font-weight: 600; font-size: 17px;
+    display: flex; justify-content: space-between; gap: 16px; align-items: center;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; font: 500 22px/1 var(--mono); transition: transform .15s; }
+  details[open] summary::after { transform: rotate(45deg); }
+  details p { margin: 0 0 18px; color: var(--muted); }
+
+  /* ---------- Final CTA / footer ---------- */
+  .final {
+    background: var(--stage); color: var(--on-stage); border-radius: var(--r-stage);
+    border: 1.5px solid var(--border); box-shadow: 0 4px 0 var(--shadow);
+    padding: 36px 24px; display: grid; gap: 20px; align-items: center;
+  }
+  @media (min-width: 760px) { .final { grid-template-columns: 1fr auto; padding: 48px; } }
+  .final h2 { font-size: clamp(28px, 4.5vw, 40px); }
+  .final p { margin: 8px 0 0; opacity: .8; }
+  .final .btn { border-color: #EFEADC; box-shadow: 0 3px 0 #000; }
+
+  footer { padding: 40px 0 48px; font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 28px; justify-content: space-between; align-items: center; }
+  footer nav { display: flex; flex-wrap: wrap; gap: 20px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .btn, summary::after { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="АЛХААЧ нүүр">
+      <img src="assets/favicon.png" alt="" width="36" height="36">
+      <span>АЛХААЧ</span>
+    </a>
+    <nav class="links" aria-label="Үндсэн цэс">
+      <a href="#how">Хэрхэн ажилладаг</a>
+      <a href="#install">Суулгах</a>
+      <a href="#faq">Асуулт</a>
+    </nav>
+    <a class="btn btn-primary btn-sm js-download" href="#install">Татах</a>
+  </div>
+</header>
+
+<main id="top">
+  <!-- ================= HERO ================= -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow"><i></i>Монгол хэл дээрх алхам тоолуур</span>
+        <h1>Алх.<br>Тарвагаа <em>турааж</em> үз.</h1>
+        <p class="lead">Өдөр бүрийн алхалт чинь тарвагыг чинь турааж эсвэл бүдүүрүүлнэ. Найзуудтайгаа 6 оронтой кодоор хаалттай бүлэг үүсгээд хэн нь хамгийн сайн алхаж байгааг хамтдаа хар.</p>
+
+        <div class="cta-row">
+          <a class="btn btn-primary js-download" href="#install" download>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            <span class="two"><small>Android · APK</small>Апп татах</span>
+          </a>
+          <span class="btn" aria-disabled="true" title="iOS хувилбар удахгүй">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.7-3.19-1.72-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.19-1.54 2.67-.39 6.63 1.11 8.8.73 1.06 1.6 2.25 2.75 2.2 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.88.69 1.19-.02 1.94-1.08 2.66-2.14.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.32-.89-2.34-3.54ZM14.2 6.13c.61-.74 1.02-1.76.91-2.78-.88.04-1.94.59-2.57 1.32-.56.65-1.06 1.69-.93 2.69.98.08 1.98-.5 2.59-1.23Z"/></svg>
+            <span class="two"><small>iPhone</small>Удахгүй</span>
+          </span>
+        </div>
+        <p class="release-meta" id="releaseMeta" aria-live="polite"></p>
+      </div>
+
+      <div class="stage-card">
+        <div class="stage">
+          <span class="stage-tag" id="stageName">Хэвийн</span>
+          <span class="stage-weight">жин <b id="weightVal">50</b>/100</span>
+          <div class="char" id="char" role="img" aria-label="Тарвага">
+            <img id="bodyImg" src="assets/character/tarvaga_body_050.webp" alt="" width="600" height="650">
+            <div class="scarf" id="scarfEl"></div>
+          </div>
+        </div>
+        <div class="controls">
+          <div class="steps-row">
+            <label for="steps">Өнөөдрийн алхам</label>
+            <output id="stepsOut" for="steps" class="mono">6,000</output>
+          </div>
+          <input type="range" id="steps" min="0" max="15000" step="250" value="6000" aria-describedby="demoHint">
+          <div class="swatches" role="group" aria-label="Ороолтын өнгө">
+            <span>Ороолт</span>
+          </div>
+          <p class="hint" id="demoHint">Гулсуурыг чирээд үз — энэ бол жишээ. Апп дотор жин өдөр өдрөөр аажмаар өөрчлөгдөнө.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HOW ================= -->
+  <section class="block" id="how">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Хэрхэн ажилладаг</span>
+        <h2>Гурван алхамтай энгийн тоглоом</h2>
+      </div>
+      <div class="cards">
+        <article class="card">
+          <span class="num g">01</span>
+          <h3>Алх</h3>
+          <p>Апп нь Health Connect (Android) эсвэл Apple Health-ээс алхамын тоог автоматаар уншина. Утсаа халаасандаа хийгээд л алхахад болно.</p>
+        </article>
+        <article class="card">
+          <span class="num a">02</span>
+          <h3>Тарвагаа хар</h3>
+          <p>Зорилгодоо хүрвэл тарвага чинь турна, суугаад өнгөрөөвөл бүдүүрнэ. «Тамирчин»-аас «Бөндгөр» хүртэл 5 шат бий.</p>
+        </article>
+        <article class="card">
+          <span class="num u">03</span>
+          <h3>Бүлгээрээ өрсөл</h3>
+          <p>Гэр бүл, найз нөхөдтэйгөө хаалттай бүлэг үүсгэ. Зөвхөн гишүүд л бие биеийнхээ дүр, алхалтыг харна.</p>
+          <div class="code-demo" aria-label="Жишээ код">
+            <b>A</b><b>L</b><b>X</b><b>4</b><b>7</b><b>Q</b>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= INSTALL ================= -->
+  <section class="block" id="install">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Android дээр суулгах</span>
+        <h2>2 минутад суулгана</h2>
+        <p>АЛХААЧ одоогоор Play Store-д ороогүй тул APK файлаар шууд суулгана.</p>
+      </div>
+      <div class="install-grid">
+        <ol class="steps">
+          <li><div><strong>APK татах</strong><p>Утаснаасаа «Апп татах» товчийг дарна. Chrome «Энэ файл аюултай байж болзошгүй» гэвэл «Ямар ч байсан татах»-ыг сонгоно.</p></div></li>
+          <li><div><strong>Суулгахыг зөвшөөрөх</strong><p>Татсан файлаа нээнэ. «Үл мэдэх апп суулгах» зөвшөөрөл асуувал Тохиргоо → энэ эх сурвалжаас зөвшөөрөх-ийг асаагаад буцна.</p></div></li>
+          <li><div><strong>Суулгаад нээх</strong><p>«Суулгах» дарна. Play Protect анхааруулга гарвал «Дэлгэрэнгүй» → «Ямар ч байсан суулгах».</p></div></li>
+          <li><div><strong>Google-ээр нэвтрэх</strong><p>Тарвагандаа нэр, ороолтын өнгө сонгоод Health Connect-д алхам унших зөвшөөрөл өгнө. Тэгээд л алх!</p></div></li>
+        </ol>
+        <div class="side">
+          <div class="card req">
+            <h3 style="margin:0 0 16px;font-size:20px">Шаардлага</h3>
+            <dl>
+              <dt>Систем</dt><dd>Android 8.0 ба түүнээс дээш</dd>
+              <dt>Алхам</dt><dd>Health Connect эсвэл утасны мэдрэгч</dd>
+              <dt>Нэвтрэх</dt><dd>Google данс</dd>
+              <dt>Хувилбар</dt><dd class="mono" id="versionVal">1.0.0</dd>
+            </dl>
+          </div>
+          <div class="card qr-card">
+            <div class="qr" id="qr" aria-hidden="true"></div>
+            <div>
+              <strong>Компьютер дээр байна уу?</strong>
+              <p>Утасныхаа камераар уншуулаад шууд утсан дээрээ татаарай.</p>
+            </div>
+          </div>
+          <a class="btn btn-primary js-download" href="#install" download>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            APK татах
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FAQ ================= -->
+  <section class="block" id="faq">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Түгээмэл асуулт</span>
+        <h2>Асуулт хариулт</h2>
+      </div>
+      <div class="faq">
+        <details>
+          <summary>Play Store-оос биш суулгах аюулгүй юу?</summary>
+          <p>Тийм. APK нь манай GitHub-ийн албан ёсны хувилбараас шууд татагддаг бөгөөд эх код нь нээлттэй. Зөвхөн энэ хуудаснаас татаж, өөр газраас тараасан APK бүү суулгаарай.</p>
+        </details>
+        <details>
+          <summary>Ямар мэдээлэл цуглуулдаг вэ?</summary>
+          <p>Зөвхөн Google-ийн нэр, имэйл (нэвтрэхэд) болон өдөр тутмын алхамын тоо. Байршил, зүрхний цохилт, жин зэрэг бусад эрүүл мэндийн өгөгдөлд хандахгүй, зар сурталчилгаанд ашиглахгүй. Дэлгэрэнгүйг <a href="https://alkhaach2.onrender.com/api/privacy">нууцлалын бодлого</a>-оос үзнэ үү.</p>
+        </details>
+        <details>
+          <summary>Миний алхалтыг хэн харж чадах вэ?</summary>
+          <p>Зөвхөн таны нэгдсэн хаалттай бүлгийн гишүүд. Нээлттэй лидерборд байхгүй. Бүлгээс гармагц таны мэдээлэл тэнд харагдахаа болино.</p>
+        </details>
+        <details>
+          <summary>iPhone-д хэзээ гарах вэ?</summary>
+          <p>iOS хувилбар бэлтгэгдэж байна. Гармагц энэ хуудсанд App Store-ийн холбоос нэмэгдэнэ.</p>
+        </details>
+        <details>
+          <summary>Шинэ хувилбар гарвал яах вэ?</summary>
+          <p>Энэ хуудаснаас шинэ APK-г татаад дээрээс нь суулгахад болно — таны тарвага, алхалтын түүх, бүлгүүд хэвээрээ үлдэнэ.</p>
+        </details>
+        <details>
+          <summary>Дансаа яаж устгах вэ?</summary>
+          <p>Апп доторх Профайл → «Данс устгах». Таны бүх өгөгдөл 30 хоногийн дотор бүрэн устгагдана.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" style="border-top:0;padding-top:0">
+    <div class="wrap">
+      <div class="final">
+        <div>
+          <h2>Өнөөдрөөс алхаж эхэл.</h2>
+          <p>Тарвага чинь чамайг хүлээж байна.</p>
+        </div>
+        <a class="btn btn-primary js-download" href="#install" download>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          Android-д татах
+        </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="muted">© <span id="yr">2026</span> АЛХААЧ</span>
+    <nav aria-label="Доод цэс">
+      <a href="https://alkhaach2.onrender.com/api/privacy">Нууцлалын бодлого</a>
+      <a href="mailto:info@alkhaach.mn">info@alkhaach.mn</a>
+      <a href="https://github.com/saylosmn/alkhaach2">GitHub</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" defer></script>
+<script>
+  // ---- Тохиргоо ---------------------------------------------------------
+  // APK-г GitHub Releases-д `alkhaach.apk` нэрээр хавсаргахад энэ холбоос
+  // үргэлж хамгийн сүүлийн хувилбарыг татна.
+  const REPO = "saylosmn/alkhaach2";
+  const APK_NAME = "alkhaach.apk";
+  const APK_URL = `https://github.com/${REPO}/releases/latest/download/${APK_NAME}`;
+
+  document.getElementById("yr").textContent = new Date().getFullYear();
+
+  // ---- Татах товчнууд ---------------------------------------------------
+  document.querySelectorAll(".js-download").forEach((a) => { a.href = APK_URL; });
+
+  // Хамгийн сүүлийн release-ийн хувилбар, хэмжээг харуулна (алдаа гарвал чимээгүй).
+  const meta = document.getElementById("releaseMeta");
+  fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: "application/vnd.github+json" } })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then((rel) => {
+      const asset = (rel.assets || []).find((x) => x.name === APK_NAME) || (rel.assets || []).find((x) => x.name.endsWith(".apk"));
+      if (!asset) return;
+      const url = asset.browser_download_url;
+      document.querySelectorAll(".js-download").forEach((a) => { a.href = url; });
+      const ver = (rel.tag_name || "").replace(/^v/, "");
+      const mb = (asset.size / 1048576).toFixed(1);
+      const d = new Date(rel.published_at || asset.updated_at);
+      const date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+      meta.textContent = [ver && `v${ver}`, `${mb} MB`, date].filter(Boolean).join(" · ");
+      if (ver) document.getElementById("versionVal").textContent = ver;
+    })
+    .catch(() => {});
+
+  // ---- QR (компьютерээс орсон үед) ---------------------------------------
+  window.addEventListener("load", () => {
+    if (typeof qrcode !== "function") return;
+    const qr = qrcode(0, "M");
+    qr.addData(location.protocol.startsWith("http") ? location.href.split("#")[0] : APK_URL);
+    qr.make();
+    document.getElementById("qr").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+  });
+
+  // ---- Дүрийн демо -------------------------------------------------------
+  const COLORS = ["#12A87E", "#F0A03C", "#4A3AFF", "#E2574C", "#3A9BDC", "#C25AA8"];
+  const STAGES = [
+    { max: 19, name: "Хийсгэлэн" },
+    { max: 39, name: "Тамирчин" },
+    { max: 59, name: "Хэвийн" },
+    { max: 79, name: "Бүдүүн" },
+    { max: 100, name: "Бөндгөр" },
+  ];
+  const frame = (kind, w) => `assets/character/tarvaga_${kind}_${String(w).padStart(3, "0")}.webp`;
+
+  // Бүх кадрыг урьдчилан ачаална — гулсуур чирэхэд анивчихгүй.
+  for (let w = 0; w <= 100; w += 5) { new Image().src = frame("body", w); new Image().src = frame("scarf", w); }
+
+  const range = document.getElementById("steps");
+  const out = document.getElementById("stepsOut");
+  const body = document.getElementById("bodyImg");
+  const scarf = document.getElementById("scarfEl");
+  const charEl = document.getElementById("char");
+  const stageName = document.getElementById("stageName");
+  const weightVal = document.getElementById("weightVal");
+
+  function render() {
+    const steps = Number(range.value);
+    // Жишээ зураглал: 0 алхам → 100 (Бөндгөр), 12,500+ → 0.
+    const weight = Math.max(0, Math.min(100, Math.round((1 - steps / 12500) * 100)));
+    const f = Math.round(weight / 5) * 5;
+    out.textContent = steps.toLocaleString("en-US");
+    range.style.setProperty("--p", `${(steps / Number(range.max)) * 100}%`);
+    body.src = frame("body", f);
+    scarf.style.setProperty("--scarf-img", `url("${frame("scarf", f)}")`);
+    weightVal.textContent = weight;
+    const st = STAGES.find((s) => weight <= s.max);
+    stageName.textContent = st.name;
+    charEl.setAttribute("aria-label", `Тарвага — ${st.name}, жин ${weight}/100`);
+  }
+
+  const sw = document.querySelector(".swatches");
+  COLORS.forEach((c, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "swatch";
+    b.style.setProperty("--c", c);
+    b.setAttribute("aria-label", `Өнгө ${i + 1}`);
+    b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+    b.addEventListener("click", () => {
+      sw.querySelectorAll(".swatch").forEach((x) => x.setAttribute("aria-pressed", "false"));
+      b.setAttribute("aria-pressed", "true");
+      charEl.style.setProperty("--scarf", c);
+    });
+    sw.appendChild(b);
+  });
+
+  range.addEventListener("input", render);
+  render();
+</script>
+</body>
+</html>

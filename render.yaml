@@ -33,3 +33,15 @@ services:
         value: "1"
       - key: NOTIFY_SECRET
         sync: false
+
+  # Апп татах landing хуудас (website/). Build хэрэггүй — статик файлууд.
+  # APK нь GitHub Releases-ээс татагдана (website/README.md-г үз).
+  - type: web
+    name: alkhaach-web
+    runtime: static
+    buildCommand: echo "static site"
+    staticPublishPath: website
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=604800
